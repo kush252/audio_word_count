@@ -1,0 +1,21 @@
+# Virtual environments
+venv/
+env/
+.venv/
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Models (too large for git)
+backend/models/
+models/
+
+# Generated files
+counts.json
+
+# IDEs
+.vscode/
+.idea/
