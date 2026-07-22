@@ -1,8 +1,0 @@
-faster-whisper
-sounddevice
-numpy
-spacy
-torch
-torchaudio
-PyYAML
-tabulate

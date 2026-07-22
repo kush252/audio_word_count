@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Keyword Detection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+    
+    <div class="container glass-panel">
+        <header>
+            <h1>Keyword Detection</h1>
+            <p>Speak clearly into your microphone</p>
+        </header>
+        
+        <div class="controls">
+            <button id="start-btn" class="btn primary-btn">Start Listening</button>
+            <button id="stop-btn" class="btn secondary-btn" disabled>Stop Listening</button>
+            <div class="status-indicator">
+                <span id="status-dot" class="dot"></span>
+                <span id="status-text">Not listening</span>
+            </div>
+        </div>
+
+        <div class="dashboard">
+            <div class="panel">
+                <h2>Live Transcript</h2>
+                <div id="transcript-container" class="transcript-box">
+                    <p id="transcript-text" class="placeholder">Your speech will appear here...</p>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>Detected Keywords</h2>
+                <div id="keywords-container" class="keywords-grid">
+                    <!-- Keyword counters will be injected here by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
