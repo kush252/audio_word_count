@@ -113,11 +113,20 @@ async function startListening() {
                         }
                     });
 
-                    // Update UI (we only display final text for Deepgram to keep it simple, but you can parse partials too)
+                    // Update UI with final text
                     transcriptText.classList.remove('placeholder');
                     transcriptText.innerHTML = `<span style="color: var(--text-color);">${finalTranscript}</span>`;
-
+                    
                     // Auto-scroll to bottom
+                    const container = document.getElementById('transcript-container');
+                    container.scrollTop = container.scrollHeight;
+                } else if (!data.is_final) {
+                    // Show interim results instantly to fix perceived slowness without chopping audio
+                    transcriptText.classList.remove('placeholder');
+                    transcriptText.innerHTML = `
+                        <span style="color: var(--text-color);">${finalTranscript}</span>
+                        <span style="color: #94a3b8; font-style: italic;">${transcriptSegment}</span>
+                    `;
                     const container = document.getElementById('transcript-container');
                     container.scrollTop = container.scrollHeight;
                 }
