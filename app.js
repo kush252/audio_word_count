@@ -53,6 +53,11 @@ function updateKeywordCount(word) {
     }
 }
 
+// Wake up the Render backend immediately when the page loads
+// Render free tier sleeps after 15 mins. This fetch request triggers the 50-second wake-up process early.
+const BACKEND_HTTP_URL = BACKEND_WS_URL.replace('wss://', 'https://').replace('ws://', 'http://').replace('/listen', '');
+fetch(BACKEND_HTTP_URL).catch(e => console.log("Backend might be sleeping, waking it up..."));
+
 let finalTranscript = '';
 
 async function startListening() {
@@ -61,14 +66,16 @@ async function startListening() {
     try {
         // Request microphone access
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        statusText.textContent = "Connecting to backend (may take 50s if sleeping)...";
+        startBtn.disabled = true;
 
         // Connect to our lightweight Python backend
         socket = new WebSocket(BACKEND_WS_URL);
-
+        
         socket.onopen = () => {
             console.log("Connected to backend");
             isListening = true;
-            startBtn.disabled = true;
             stopBtn.disabled = false;
             statusDot.parentElement.classList.add('listening');
             statusText.textContent = "Listening via Deepgram...";
