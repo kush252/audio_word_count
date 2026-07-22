@@ -64,8 +64,26 @@ async function startListening() {
     if (isListening) return;
 
     try {
-        // Request microphone access
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Request microphone access, tweaking browser defaults to avoid cutting off quiet voices
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                autoGainControl: true,
+                noiseSuppression: false, // Disabling this helps catch whispers/low voices
+                echoCancellation: true
+            } 
+        });
+
+        // Web Audio API: Digitally boost the microphone volume before sending
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioContext.createMediaStreamSource(stream);
+        const gainNode = audioContext.createGain();
+        gainNode.gain.value = 3.0; // Boosts volume by 300%. Increase this if it's still too quiet.
+        const destination = audioContext.createMediaStreamDestination();
+        
+        source.connect(gainNode);
+        gainNode.connect(destination);
+        
+        const boostedStream = destination.stream;
         
         statusText.textContent = "Connecting to backend (may take 50s if sleeping)...";
         startBtn.disabled = true;
@@ -80,8 +98,8 @@ async function startListening() {
             statusDot.parentElement.classList.add('listening');
             statusText.textContent = "Listening via Deepgram...";
 
-            // Configure MediaRecorder to send chunks every 250ms
-            mediaRecorder = new MediaRecorder(stream);
+            // Configure MediaRecorder to send chunks every 250ms, using the boosted stream
+            mediaRecorder = new MediaRecorder(boostedStream);
 
             mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
