@@ -1,48 +1,59 @@
-# Real-Time Keyword Detection Project
+# Real-Time Keyword Detection Project (Deepgram Edition)
 
-This project is a real-time speech-to-text keyword detection application. It has been built using a **zero-backend architecture**, running entirely in the user's web browser using the native Web Speech API. 
+This project is a real-time speech-to-text keyword detection application. It uses a **lightweight frontend-backend architecture** to stream audio from the browser directly to **Deepgram's** real-time Cloud API for maximum accuracy and speed.
 
-## Features
-- **Zero Backend**: No heavy models (like Whisper) or servers required. It runs purely on client-side HTML, CSS, and JavaScript.
-- **Continuous Listening**: Uses `webkitSpeechRecognition` to continuously transcribe microphone input.
-- **Real-Time Keyword Detection**: Matches spoken words against a predefined list of keywords instantly.
-- **Modern UI**: Features a beautiful glassmorphism design with responsive counters and a live transcript feed.
+## Architecture
 
-## How It Works
-
-1. **Audio Capture & Transcription**: When you click "Start Listening", the browser asks for microphone access and uses its built-in Speech-to-Text engine (via the Web Speech API).
-2. **Keyword Detection**: The transcribed text is sent to the JavaScript logic (`app.js`), which splits the text into words and checks them against the `KEYWORDS` array.
-3. **UI Updates**: The live transcript is displayed on the screen, and any detected keywords trigger an immediate update to the counter dashboard.
+- **Frontend (`index.html`, `app.js`, `style.css`)**: A static web app that captures raw audio using the `MediaRecorder` API and streams it via WebSockets. It also handles the keyword matching logic (using Regex) and updates the modern UI.
+- **Backend (`backend/server.py`)**: A tiny, single-file Python proxy server built with FastAPI. Its sole purpose is to securely hold your `DEEPGRAM_API_KEY` and forward the WebSocket audio stream from the browser to Deepgram's servers.
 
 ## Getting Started
 
-Because this is a static web application with no backend dependencies, running it is incredibly simple.
-
 ### Prerequisites
-- A modern web browser (Google Chrome is highly recommended as it has the best support for the Web Speech API).
-- A working microphone.
 
-### Running Locally
+- Python 3.9+
+- A free API key from [Deepgram](https://deepgram.com/).
 
-1. Open the project folder in your file explorer.
-2. Double-click the `index.html` file to open it in your browser.
-3. (Optional) Alternatively, you can run a simple local web server:
+### Installation
+
+1. Navigate to the `backend/` directory:
    ```bash
-   # using python
-   python -m http.server 8000
+   cd backend
    ```
-   Then navigate to `http://localhost:8000`.
+2. Install the lightweight Python dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Copy the `.env.example` file to `.env` and insert your API key:
+   ```bash
+   cp .env.example .env
+   # Edit .env and set DEEPGRAM_API_KEY=your_key
+   ```
 
-### Configuring Keywords
+### Running the Application
 
-To change the words the app listens for, open `app.js` in a text editor and modify the `KEYWORDS` array at the top of the file:
+1. **Start the backend server:**
+   ```bash
+   cd backend
+   python server.py
+   ```
+   *The proxy server will start on `ws://localhost:8000/listen`.*
+
+2. **Open the frontend:**
+   In your file explorer, go to the root project directory and double-click `index.html` to open it in Google Chrome.
+
+3. Click **Start Listening**!
+
+## Configuring Keywords
+
+To change the words and phrases the app listens for, open `app.js` in a text editor and modify the `KEYWORDS` array at the top of the file:
 
 ```javascript
-const KEYWORDS = ['hello', 'world', 'test', 'keyword', 'speech', 'browser', 'amazing'];
+const KEYWORDS = ['hello', 'did you all understand', 'video understand'];
 ```
 
 ## Deployment
 
-Since there is no backend, this app can be deployed anywhere that hosts static files for free:
-- **GitHub Pages**: Push this code to a GitHub repository and enable Pages.
-- **Vercel / Netlify / Render**: Drag and drop the folder, or link your Git repository to deploy it instantly.
+This architecture is incredibly easy to deploy:
+- **Backend**: Deploy the `backend/` folder to a service like **Render** as a Web Service. Ensure you set the `DEEPGRAM_API_KEY` environment variable in their dashboard.
+- **Frontend**: Update `BACKEND_WS_URL` in `app.js` to point to your new deployed backend URL (e.g., `wss://your-backend.onrender.com/listen`), and host the HTML files anywhere for free (GitHub Pages, Vercel, Netlify).

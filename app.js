@@ -1,9 +1,13 @@
 // Configuration: Define your keywords here
 const KEYWORDS = ['hello', 'did you all understand'];
 
+// Backend WebSocket URL
+const BACKEND_WS_URL = 'ws://localhost:8000/listen';
+
 // State
 let isListening = false;
-let recognition = null;
+let socket = null;
+let mediaRecorder = null;
 let counts = {};
 
 // Initialize counts
@@ -49,118 +53,112 @@ function updateKeywordCount(word) {
     }
 }
 
-// Setup Speech Recognition
-function setupRecognition() {
-    // Check for browser support
-    window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let finalTranscript = '';
 
-    if (!window.SpeechRecognition) {
-        alert("Your browser does not support the Web Speech API. Please use Google Chrome.");
-        return false;
-    }
-
-    recognition = new window.SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
-
-    let finalTranscript = '';
-
-    recognition.onstart = () => {
-        isListening = true;
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-        statusDot.parentElement.classList.add('listening');
-        statusText.textContent = "Listening...";
-    };
-
-    recognition.onresult = (event) => {
-        let interimTranscript = '';
-
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcriptSegment = event.results[i][0].transcript;
-
-            if (event.results[i].isFinal) {
-                finalTranscript += transcriptSegment + ' ';
-
-                // Memory Safety: Prevent browser crash over hours of use by limiting visual text
-                if (finalTranscript.length > 800) {
-                    finalTranscript = '... ' + finalTranscript.slice(-800);
-                }
-
-                // Detect Keywords and Phrases in the final segment
-                const lowerTranscript = transcriptSegment.toLowerCase();
-
-                KEYWORDS.forEach(kw => {
-                    const cleanKw = kw.toLowerCase();
-                    // Use regex with word boundaries (\b) to match whole words/phrases only
-                    // This prevents 'art' from triggering when you say 'smart'
-                    const regex = new RegExp('\\b' + cleanKw + '\\b', 'g');
-                    const matches = lowerTranscript.match(regex);
-
-                    if (matches) {
-                        // If spoken multiple times in one segment, count each one
-                        for (let j = 0; j < matches.length; j++) {
-                            updateKeywordCount(cleanKw);
-                        }
-                    }
-                });
-
-            } else {
-                interimTranscript += transcriptSegment;
-            }
-        }
-
-        // Update UI
-        transcriptText.classList.remove('placeholder');
-        transcriptText.innerHTML = `
-            <span style="color: var(--text-color);">${finalTranscript}</span>
-            <span style="color: #94a3b8; font-style: italic;">${interimTranscript}</span>
-        `;
-
-        // Auto-scroll to bottom
-        const container = document.getElementById('transcript-container');
-        container.scrollTop = container.scrollHeight;
-    };
-
-    recognition.onerror = (event) => {
-        console.error("Speech recognition error:", event.error);
-        if (event.error === 'not-allowed') {
-            alert("Microphone access was denied.");
-            stopListening();
-        }
-    };
-
-    recognition.onend = () => {
-        // If it ended unexpectedly (not by user), restart it to simulate continuous listening
-        if (isListening) {
-            try {
-                recognition.start();
-            } catch (e) {
-                console.error("Error restarting recognition:", e);
-                stopListening();
-            }
-        }
-    };
-
-    return true;
-}
-
-function startListening() {
-    if (!recognition && !setupRecognition()) return;
+async function startListening() {
+    if (isListening) return;
 
     try {
-        recognition.start();
-    } catch (e) {
-        console.error("Error starting recognition:", e);
+        // Request microphone access
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        // Connect to our lightweight Python backend
+        socket = new WebSocket(BACKEND_WS_URL);
+
+        socket.onopen = () => {
+            console.log("Connected to backend");
+            isListening = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            statusDot.parentElement.classList.add('listening');
+            statusText.textContent = "Listening via Deepgram...";
+
+            // Configure MediaRecorder to send chunks every 250ms
+            mediaRecorder = new MediaRecorder(stream);
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
+                    socket.send(event.data);
+                }
+            };
+
+            mediaRecorder.start(250);
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            // Handle Deepgram response format
+            if (data.type === 'Results' && data.channel && data.channel.alternatives) {
+                const transcriptSegment = data.channel.alternatives[0].transcript;
+
+                if (data.is_final && transcriptSegment.trim().length > 0) {
+                    finalTranscript += transcriptSegment + ' ';
+
+                    // Memory Safety: Prevent browser crash over hours of use
+                    if (finalTranscript.length > 800) {
+                        finalTranscript = '... ' + finalTranscript.slice(-800);
+                    }
+
+                    // Detect Keywords and Phrases in the final segment
+                    const lowerTranscript = transcriptSegment.toLowerCase();
+
+                    KEYWORDS.forEach(kw => {
+                        const cleanKw = kw.toLowerCase();
+                        const regex = new RegExp('\\b' + cleanKw + '\\b', 'g');
+                        const matches = lowerTranscript.match(regex);
+
+                        if (matches) {
+                            for (let j = 0; j < matches.length; j++) {
+                                updateKeywordCount(cleanKw);
+                            }
+                        }
+                    });
+
+                    // Update UI (we only display final text for Deepgram to keep it simple, but you can parse partials too)
+                    transcriptText.classList.remove('placeholder');
+                    transcriptText.innerHTML = `<span style="color: var(--text-color);">${finalTranscript}</span>`;
+
+                    // Auto-scroll to bottom
+                    const container = document.getElementById('transcript-container');
+                    container.scrollTop = container.scrollHeight;
+                }
+            } else if (data.type === 'error') {
+                console.error("Backend Error:", data.message);
+                alert("Backend Error: " + data.message);
+                stopListening();
+            }
+        };
+
+        socket.onclose = () => {
+            console.log("Disconnected from backend");
+            stopListening();
+        };
+
+        socket.onerror = (error) => {
+            console.error("WebSocket Error:", error);
+            alert("Could not connect to the backend server. Is it running?");
+            stopListening();
+        };
+
+    } catch (err) {
+        console.error("Error accessing microphone:", err);
+        alert("Could not access microphone.");
     }
 }
 
 function stopListening() {
     isListening = false;
-    if (recognition) {
-        recognition.stop();
+
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
     }
+
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.close();
+    }
+
     startBtn.disabled = false;
     stopBtn.disabled = true;
     statusDot.parentElement.classList.remove('listening');
