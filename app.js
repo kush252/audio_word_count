@@ -2,7 +2,7 @@
 const KEYWORDS = ['hello', 'did you all understand'];
 
 // Backend WebSocket URL
-const BACKEND_WS_URL = 'ws://localhost:8000/listen';
+const BACKEND_WS_URL = 'wss://audio-word-count.onrender.com/listen';
 
 // State
 let isListening = false;
@@ -101,17 +101,15 @@ async function startListening() {
                     }
 
                     // Detect Keywords and Phrases in the final segment
-                    const lowerTranscript = transcriptSegment.toLowerCase();
-
+                    // Strip all punctuation to make matching much more forgiving
+                    const lowerTranscript = transcriptSegment.toLowerCase().replace(/[.,!?'"]/g, '');
+                    
                     KEYWORDS.forEach(kw => {
                         const cleanKw = kw.toLowerCase();
-                        const regex = new RegExp('\\b' + cleanKw + '\\b', 'g');
-                        const matches = lowerTranscript.match(regex);
-
-                        if (matches) {
-                            for (let j = 0; j < matches.length; j++) {
-                                updateKeywordCount(cleanKw);
-                            }
+                        
+                        // Use simpler, more forgiving string matching instead of strict Regex word boundaries
+                        if (lowerTranscript.includes(cleanKw)) {
+                            updateKeywordCount(cleanKw);
                         }
                     });
 

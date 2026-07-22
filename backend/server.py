@@ -39,7 +39,7 @@ async def websocket_endpoint(websocket: WebSocket):
     # We expect 16kHz linear16 (raw PCM) from the browser by default, but web browser usually sends WebM/Opus.
     # We will tell Deepgram we are sending WebM/Opus if we let the browser use MediaRecorder.
     # To be safe, we omit encoding/sample_rate so Deepgram auto-detects the WebM/Opus container.
-    deepgram_url = "wss://api.deepgram.com/v1/listen?model=nova-2&smart_format=true"
+    deepgram_url = "wss://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&keepalive=true&endpointing=250"
     
     extra_headers = {
         "Authorization": f"Token {DEEPGRAM_API_KEY}"
